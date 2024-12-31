@@ -1,4 +1,4 @@
-from Model import ChineseCheckersEnv
+from RL_model.ChineseCheckerModels.Model import ChineseCheckersEnv
 import cv2
 from stable_baselines3 import PPO
 Players = ["B", "G"]
