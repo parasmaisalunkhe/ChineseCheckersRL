@@ -20,8 +20,10 @@ class ChineseCheckersEnv(gymnasium.Env):
         while len(pattern) != width:
           pattern = "." + pattern + "."
         finalpattern += pattern
+        print(pattern)
     finalpattern += "." * width
-    return np.array([0 if char == 'x' else -1 for char in finalpattern], dtype=int)#.reshape((height, width, 3))
+    # return finalpattern
+    return np.array([0 if char == 'x' else -1 for char in finalpattern], dtype=int)
   def __init__(self):
     super(ChineseCheckersEnv, self).__init__()
     self.cumulative_reward = 0
@@ -32,13 +34,14 @@ class ChineseCheckersEnv(gymnasium.Env):
     temp = self.ChineseCheckersPattern()
     self.state = temp
     self.action_space = MultiDiscrete([self.height*self.width, 12])
-    self.observation_space = Box(low=-1, high=2, shape=(self.height * self.width,), dtype=int)
+    self.observation_space = Box(low=-1, high=2, shape=(self.height,self.width), dtype=int)
     self.goalpieces = np.where(self.state == 0)[0][:10].tolist()
     self.mypieces = np.where(self.state == 1)[0][-10:].tolist()
     for x in self.mypieces:
       self.state[x] = 1
   def step(self, action):
-    self.state[np.random.choice(np.where(self.state == -1)[0], size=int((self.state == -1).sum() * 0.5), replace=False)] = 2
+    # self.state[np.random.choice(np.where(self.state == -1)[0], size=int((self.state == -1).sum() * 0.5), replace=False)] = 2
+    print(self.state)
     # RIGHT = 0
     # UPRIGHT = 1
     # UPLEFT = 2
@@ -51,37 +54,37 @@ class ChineseCheckersEnv(gymnasium.Env):
     # JUMPUPLEFT = 9
     # JUMPDOWNLEFT = 10
     # JUMPDOWNRIGHT = 11
-    grid = self.state.reshape(self.height, self.width)
-    row, col = np.unravel_index(action, grid.shape)
-    grid[row][col] = -1
-    if action[1] == 0:
-      grid[row+1][col] = 1
-    elif action[1] == 1:
-      grid[row+1][col+1] = 1
-    elif action[1] == 2:
-      grid[row-1][col+1] = 1
-    elif action[1] == 3:
-      grid[row-1][col-1] = 1
-    elif action[1] == 4:
-      grid[row+1][col-1] = 1
-    elif action[1] == 5:
-      grid[row-1][col] = 1
-    elif action[1] == 6:
-      grid[row+2][col] = 1
-    elif action[1] == 7:
-      grid[row-2][col] = 1
-    elif action[1] == 8:
-      grid[row+2][col+2] = 1
-    elif action[1] == 9:
-      grid[row-2][col+2] = 1
-    elif action[1] == 10:
-      grid[row-2][col-2] = 1
-    elif action[1] == 11:
-      grid[row+2][col-2] = 1
-    self.state = grid.flatten()
-    if self.isDone():
-      return grid.flatten(), 10, True, False, None
-    return grid.flatten(), -0.1, False, False, None
+    # grid = self.state.reshape(self.height, self.width)
+    # row, col = np.unravel_index(action, grid.shape)
+    # grid[row][col] = -1
+    # if action[1] == 0:
+    #   grid[row+1][col] = 1
+    # elif action[1] == 1:
+    #   grid[row+1][col+1] = 1
+    # elif action[1] == 2:
+    #   grid[row-1][col+1] = 1
+    # elif action[1] == 3:
+    #   grid[row-1][col-1] = 1
+    # elif action[1] == 4:
+    #   grid[row+1][col-1] = 1
+    # elif action[1] == 5:
+    #   grid[row-1][col] = 1
+    # elif action[1] == 6:
+    #   grid[row+2][col] = 1
+    # elif action[1] == 7:
+    #   grid[row-2][col] = 1
+    # elif action[1] == 8:
+    #   grid[row+2][col+2] = 1
+    # elif action[1] == 9:
+    #   grid[row-2][col+2] = 1
+    # elif action[1] == 10:
+    #   grid[row-2][col-2] = 1
+    # elif action[1] == 11:
+    #   grid[row+2][col-2] = 1
+    # self.state = grid.flatten()
+    # if self.isDone():
+    #   return grid.flatten(), 10, True, False, None
+    # return grid.flatten(), -0.1, False, False, None
   def reset(self, seed=None):
     self.state = self.ChineseCheckersPattern()
     print(self.state.shape)
@@ -102,4 +105,6 @@ class ChineseCheckersEnv(gymnasium.Env):
     plt.imshow(self.state.squeeze())
     plt.axis('off')  # Turn off axis numbers and ticks
     plt.show()
-check_env(ChineseCheckersEnv(), warn=True)
+env = ChineseCheckersEnv()
+
+# print(env.ChineseCheckersPattern())
