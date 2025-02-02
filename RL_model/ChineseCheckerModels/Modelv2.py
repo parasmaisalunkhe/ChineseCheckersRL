@@ -80,8 +80,8 @@ class ChineseCheckersEnv(gymnasium.Env):
       grid[row+2][col-2] = 1
     self.state = grid.flatten()
     if self.isDone():
-      return grid.flatten(), 10, True, dict(), None
-    return grid.flatten(), -0.1, False, dict(), None
+      return grid.flatten(), 10, True, False, None
+    return grid.flatten(), -0.1, False, False, None
   def reset(self, seed=None):
     self.state = self.ChineseCheckersPattern()
     print(self.state.shape)
