@@ -1,0 +1,54 @@
+Failure # 1 (occurred at 2025-04-01_17-42-39)
+Traceback (most recent call last):
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\ray_trial_executor.py", line 611, in start_trial
+    return self._start_trial(trial, checkpoint, train=train)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\ray_trial_executor.py", line 486, in _start_trial
+    runner = self._setup_remote_runner(trial)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\ray_trial_executor.py", line 328, in _setup_remote_runner
+    trainable_cls = trial.get_trainable_cls()
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\trial.py", line 700, in get_trainable_cls
+    return get_trainable_cls(self.trainable_name)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\registry.py", line 34, in get_trainable_cls
+    validate_trainable(trainable_name)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\registry.py", line 39, in validate_trainable
+    if not has_trainable(trainable_name):
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\registry.py", line 30, in has_trainable
+    return _global_registry.contains(TRAINABLE_CLASS, trainable_name)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\tune\registry.py", line 156, in contains
+    value = _internal_kv_get(_make_key(self._prefix, category, key))
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\_private\client_mode_hook.py", line 105, in wrapper
+    return func(*args, **kwargs)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\ray\experimental\internal_kv.py", line 57, in _internal_kv_get
+    return ray.worker.global_worker.redis_client.hget(key, "value")
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\commands\core.py", line 4970, in hget
+    return self.execute_command("HGET", name, key, keys=[name])
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 559, in execute_command
+    return self._execute_command(*args, **options)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 567, in _execute_command
+    return conn.retry.call_with_retry(
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\retry.py", line 65, in call_with_retry
+    fail(error)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 571, in <lambda>
+    lambda error: self._disconnect_raise(conn, error),
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 555, in _disconnect_raise
+    raise error
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\retry.py", line 62, in call_with_retry
+    return do()
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 568, in <lambda>
+    lambda: self._send_command_parse_response(
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 542, in _send_command_parse_response
+    return self.parse_response(conn, command_name, **options)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\client.py", line 584, in parse_response
+    response = connection.read_response()
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\connection.py", line 592, in read_response
+    response = self._parser.read_response(disable_decoding=disable_decoding)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\_parsers\resp2.py", line 15, in read_response
+    result = self._read_response(disable_decoding=disable_decoding)
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\_parsers\resp2.py", line 25, in _read_response
+    raw = self._buffer.readline()
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\_parsers\socket.py", line 115, in readline
+    self._read_from_socket()
+  File "c:\Users\paras\anaconda3\envs\marllib\lib\site-packages\redis\_parsers\socket.py", line 68, in _read_from_socket
+    raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
+redis.exceptions.ConnectionError: Connection closed by server.
+
