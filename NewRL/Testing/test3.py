@@ -1,81 +1,56 @@
-#rock paper scissors
 import gymnasium as gym
-
-from ray.rllib.env.multi_agent_env import MultiAgentEnv
-
-
-class RockPaperScissors(MultiAgentEnv):
-    """Two-player environment for the famous rock paper scissors game.
-    Both players always move simultaneously over a course of 10 timesteps in total.
-    The winner of each timestep receives reward of +1, the losing player -1.0.
-
-    The observation of each player is the last opponent action.
-    """
-
-    ROCK = 0
-    PAPER = 1
-    SCISSORS = 2
-    LIZARD = 3
-    SPOCK = 4
-
-    WIN_MATRIX = {
-        (ROCK, ROCK): (0, 0),
-        (ROCK, PAPER): (-1, 1),
-        (ROCK, SCISSORS): (1, -1),
-        (PAPER, ROCK): (1, -1),
-        (PAPER, PAPER): (0, 0),
-        (PAPER, SCISSORS): (-1, 1),
-        (SCISSORS, ROCK): (-1, 1),
-        (SCISSORS, PAPER): (1, -1),
-        (SCISSORS, SCISSORS): (0, 0),
-    }
-    def __init__(self, config=None):
-        super().__init__()
-
-        self.agents = self.possible_agents = ["player1", "player2"]
-
-        # The observations are always the last taken actions. Hence observation- and
-        # action spaces are identical.
-        self.observation_spaces = self.action_spaces = {
-            "player1": gym.spaces.Discrete(3),
-            "player2": gym.spaces.Discrete(3),
-        }
-        self.last_move = None
-        self.num_moves = 0
-    def reset(self, *, seed=None, options=None):
-        self.num_moves = 0
-
-        # The first observation should not matter (none of the agents has moved yet).
-        # Set them to 0.
-        return {
-            "player1": 0,
-            "player2": 0,
-        }, {}  # <- empty infos dict
-    def step(self, action_dict):
-        self.num_moves += 1
-
-        move1 = action_dict["player1"]
-        move2 = action_dict["player2"]
-
-        # Set the next observations (simply use the other player's action).
-        # Note that because we are publishing both players in the observations dict,
-        # we expect both players to act in the next `step()` (simultaneous stepping).
-        observations = {"player1": move2, "player2": move1}
-
-        # Compute rewards for each player based on the win-matrix.
-        r1, r2 = self.WIN_MATRIX[move1, move2]
-        rewards = {"player1": r1, "player2": r2}
-
-        # Terminate the entire episode (for all agents) once 10 moves have been made.
-        terminateds = {"__all__": self.num_moves >= 10}
-
-        # Leave truncateds and infos empty.
-        return observations, rewards, terminateds, {}, {}
-
 from ray.rllib.algorithms.ppo import PPOConfig
+import numpy as np
 
-# Create a config instance for the PPO algorithm.
+# Define your custom env class by subclassing gymnasium.Env:
+
+class ParrotEnv(gym.Env):
+    """Environment in which the agent learns to repeat the seen observations.
+
+    Observations are float numbers indicating the to-be-repeated values,
+    e.g. -1.0, 5.1, or 3.2.
+    The action space is the same as the observation space.
+    Rewards are `r=-abs([observation] - [action])`, for all steps.
+    """
+    def __init__(self, config=None):
+        # Since actions should repeat observations, their spaces must be the same.
+        self.observation_space = config.get(
+            "obs_act_space",
+            gym.spaces.Box(-1.0, 1.0, (1,), np.float32),
+        )
+        self.action_space = self.observation_space
+        self._cur_obs = None
+        self._episode_len = 0
+
+    def reset(self, *, seed=None, options=None):
+        """Resets the environment, starting a new episode."""
+        # Reset the episode len.
+        self._episode_len = 0
+        # Sample a random number from our observation space.
+        self._cur_obs = self.observation_space.sample()
+        # Return initial observation.
+        return self._cur_obs, {}
+
+    def step(self, action):
+        """Takes a single step in the episode given `action`."""
+        # Set `terminated` and `truncated` flags to True after 10 steps.
+        self._episode_len += 1
+        terminated = truncated = self._episode_len >= 10
+        # Compute the reward: `r = -abs([obs] - [action])`
+        reward = -sum(abs(self._cur_obs - action))
+        # Set a new observation (random sample).
+        self._cur_obs = self.observation_space.sample()
+        return self._cur_obs, reward, terminated, truncated, {}
+
+# Point your config to your custom env class:
 config = (
     PPOConfig()
-    .environment("Pendulum-v1")
+    .environment(
+        ParrotEnv,
+        # Add `env_config={"obs_act_space": [some Box space]}` to customize.
+    )
 )
+
+# Build a PPO algorithm and train it.
+ppo_w_custom_env = config.build()
+ppo_w_custom_env.training()
