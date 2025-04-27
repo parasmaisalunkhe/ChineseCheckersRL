@@ -25,7 +25,7 @@ class SimpleMultiDiscreteEnv(gym.Env):
 
     def step(self, action):
         assert self.action_space.contains(action), "Invalid action!"
-
+        print("Action Taken:", action)
         # Reward +1 if first action == 2 and second action == 1
         reward = 1.0 if (action[0] == 2 and action[1] == 1) else -1.0
         done = self.steps >= 20

@@ -40,7 +40,7 @@ class ChineseCheckersBoard(gym.Env):
 
         self.current_player = None 
 
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10, 10), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(100,), dtype=np.float64)
         self.action_space = spaces.MultiDiscrete([width*height, width*height])
 
         self.last_move = None
@@ -141,7 +141,7 @@ class ChineseCheckersBoard(gym.Env):
         
     def valid_action_mask(self):
         """Return a flattened action mask for the flattened action space."""
-        mask = np.zeros((width, height), dtype=bool)
+        mask = np.zeros((width*height, width*height), dtype=bool)
         for x in self.allLegalActions:
             mask[x[0], x[1]] = True  # (2,1)
         return mask.flatten()
@@ -159,18 +159,19 @@ class ChineseCheckersBoard(gym.Env):
                 return True
             
     def step(self, action):
-        done = False
         action = np.array(action)
+        # if self.valid_action_mask()[action[0] * width*height + action[1]] == False:
+        #     return self.getObservation(), -2, True, True, {}
         self.num_moves += 1
         reward = 0
         board = self.GlobalBoard[:]
         Token = self.current_player
         board[action[0]] = 0
         board[action[1]] = Token
+        done = self.isGameOver(board, Token) or self.num_moves >= 200
         if action[1] in self.ActualEndingLocations:
             reward = 5.0
-        if self.isGameOver(board, Token):
-            done = True
+        if done:
             reward = 10.0
         self.GlobalBoard = board
         observation = self.getObservation()
@@ -178,7 +179,7 @@ class ChineseCheckersBoard(gym.Env):
         self.next_player()
         return observation, reward, done, False, {}
     
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         self.num_moves = 0
         self.current_player = 1
         self.GlobalBoard = self.ChineseCheckersPattern()
@@ -190,13 +191,15 @@ class ChineseCheckersBoard(gym.Env):
             self.current_player = 1
         
     def getObservation(self):
-        indices = np.where(self.GlobalBoard == self.currentPlayer)[0]
+        indices = np.where(self.GlobalBoard == self.current_player)[0]
+        print(indices)
         indiciesCoordinates = [(x // width, x % width) for x in indices]
+        print(len(indiciesCoordinates))
         destination = [(x // width, x % width) for x in self.ActualEndingLocations]
         A = np.array(indiciesCoordinates)
         B = np.array(destination)
         distances = np.linalg.norm(A[:, np.newaxis] - B, axis=2)
-        return distances
+        return distances.flatten()
     
     def numPiecesEndZone(self, board):
         count = 0 
@@ -204,3 +207,70 @@ class ChineseCheckersBoard(gym.Env):
             if board[x] != ".":
                 count += 1
         return count
+    
+def mask_fn(env: gym.Env) -> np.ndarray:
+    return env.valid_action_mask()
+
+class FlattenMultiDiscreteWrapper(gym.ActionWrapper):
+    """Flattens MultiDiscrete into a single Discrete action space."""
+    def __init__(self, env):
+        super().__init__(env)
+        nvec = env.action_space.nvec
+        self.orig_action_space = env.action_space
+        self.action_space = gym.spaces.Discrete(np.prod(nvec))
+        self.nvec = nvec
+
+    def action(self, action):
+        """Convert flat action index into MultiDiscrete action array."""
+        idxs = []
+        for n in reversed(self.nvec):
+            idxs.append(action % n)
+            action //= n
+        return np.array(list(reversed(idxs)), dtype=int)
+
+    def valid_action_mask(self):
+        """Forward the valid action mask from the original env."""
+        return self.env.valid_action_mask()
+    
+from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
+from sb3_contrib.common.wrappers import ActionMasker
+from sb3_contrib.ppo_mask import MaskablePPO
+from stable_baselines3.common.env_checker import check_env
+
+
+env = ChineseCheckersBoard(2)
+
+
+# obs, info = env.reset()
+# print(obs)
+env = FlattenMultiDiscreteWrapper(env)  # Flatten actions
+env = ActionMasker(env, mask_fn)         # Add action masking
+# check_env(env, warn=True)
+# # 5. Create and train the MaskablePPO model
+model = MaskablePPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=10_000)
+
+# # 6. After training, run a prediction
+# # 1. Reset environment
+# obs, info = env.reset()
+# done = False
+# total_reward = 0
+
+# while not done:
+#     # 2. Get valid action mask manually (because env is wrapped)
+#     action_mask = env.action_masks()
+#     print("Action mask:", action_mask)
+#     # 3. Predict action with action mask
+#     action, _ = model.predict(obs, action_masks=action_mask, deterministic=True)
+    
+#     # 4. Take a step in the environment
+#     obs, reward, done, truncated, info = env.step(action)
+    
+#     # 5. Accumulate reward
+#     total_reward += reward
+
+#     # Optional: print what is happening
+#     print(f"Action taken (flat): {action} | Reward: {reward} | Done: {done}")
+
+# # 6. Final result
+# print(f"Episode finished. Total reward: {total_reward}")
