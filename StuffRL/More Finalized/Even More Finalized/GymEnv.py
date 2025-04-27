@@ -139,12 +139,6 @@ class ChineseCheckersBoard(gym.Env):
             return list(possibleSteps)
         return list(possibleSteps) + list(self.jumpHelper(possibleJumps, set(), board))
         
-    # def isLegal(self, action, board, player_num):
-    #     lists = self.allLegalActions(board, player_num)
-    #     for x in lists:
-    #         if np.array_equal(x, action):
-    #             return True
-    #     return False
     def valid_action_mask(self):
         """Return a flattened action mask for the flattened action space."""
         mask = np.zeros((width, height), dtype=bool)
@@ -153,7 +147,6 @@ class ChineseCheckersBoard(gym.Env):
         return mask.flatten()
     
     def isGameOver(self, board, player_num):
-        # print("moves:", self.num_moves)
         if self.num_moves <= 5:
             return False
         endLocation = [board[x] for x in self.ActualEndingLocations]
@@ -168,75 +161,36 @@ class ChineseCheckersBoard(gym.Env):
     def step(self, action):
         done = False
         action = np.array(action)
-        # print("action", action)
         self.num_moves += 1
-        
-        reward = -1.0
-        # print("Key", self.current_player)
+        reward = 0
         board = self.GlobalBoard[:]
-        # print(self.IDagents[self.current_player])
-        # if not self.isLegal(action, self.GlobalBoard, self.current_player):
-        #     # print("wat")
-        #     reward = -5.0
-        #     done = True
-        #     boardObservation = self.getObservation(board)
-        #     validMoves = self.allLegalActions(self.GlobalBoard, self.current_player)
-        #     measures = self.getMeasures(board, self.current_player)
-        #     # nextActionMask = self.generate_action_mask(validMoves)
-        #     return {"obs": boardObservation, "action_mask": validMoves, "measurements": measures}, reward, done, False, {}
-        # else:
         Token = self.current_player
-        self.num_moves += 1
         board[action[0]] = 0
         board[action[1]] = Token
-            # endPlace = [board[x] for x in self.ActualEndingLocations]
-            # print(action[1], self.ActualEndingLocations)
         if action[1] in self.ActualEndingLocations:
             reward = 5.0
-        if action[0] in self.ActualEndingLocations and action[1] not in self.ActualEndingLocations:
-            reward = -2.0
         if self.isGameOver(board, Token):
             done = True
             reward = 10.0
-        measures = self.getMeasures(board, self.current_player)
+        self.GlobalBoard = board
+        observation = self.getObservation()
         self.GlobalBoard = self.nextPlayerPOV()
         self.next_player()
-        boardObservation = self.getObservation(board)
-        validMoves = self.allLegalActions(self.GlobalBoard, self.current_player)
-           
-            # nextActionMask = self.generate_action_mask(validMoves)
-        return {"obs": boardObservation, "action_mask": validMoves, "measurements": measures}, reward, done, False, {}
+        return observation, reward, done, False, {}
     
     def reset(self, seed=None):
         self.num_moves = 0
         self.current_player = 1
         self.GlobalBoard = self.ChineseCheckersPattern()
-        validMoves = self.allLegalActions(self.GlobalBoard, self.current_player)
-        board = self.GlobalBoard
-        self.num_moves = 0
-        boardObs = self.getObservation(board)
-        measure = self.getMeasures(self.GlobalBoard, self.current_player)
-        observation = {"obs": boardObs, "action_mask": validMoves, "measurements": measure}
-        return observation, {}
+        return self.getObservation(), {}
     
     def next_player(self):
         self.current_player += 1
         if self.current_player == self.numPlayers + 1:
             self.current_player = 1
-
-    def getObservation(self, board):
-        board = board[board != -1]
-        newTarget = 3
-        target = self.current_player   # The specified number
-        board[board == target] = 9
-        mask = (board != 0) & (board != 9)
-        board[mask] = 2
-        board[board == 0] = 1
-        board[board == 9] = newTarget
-        return board
         
-    def getMeasures(self, board, currentPlayer):
-        indices = np.where(board == currentPlayer)[0]
+    def getObservation(self):
+        indices = np.where(self.GlobalBoard == self.currentPlayer)[0]
         indiciesCoordinates = [(x // width, x % width) for x in indices]
         destination = [(x // width, x % width) for x in self.ActualEndingLocations]
         A = np.array(indiciesCoordinates)
