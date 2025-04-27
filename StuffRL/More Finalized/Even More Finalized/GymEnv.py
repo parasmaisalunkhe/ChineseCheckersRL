@@ -144,7 +144,9 @@ class ChineseCheckersBoard(gym.Env):
         mask = np.zeros((width*height, width*height), dtype=bool)
         for x in self.allLegalActions:
             mask[x[0], x[1]] = True  # (2,1)
-        return mask.flatten()
+        newMask = mask.flatten()
+        print(len(newMask))
+        return newMask
     
     def isGameOver(self, board, player_num):
         if self.num_moves <= 5:
