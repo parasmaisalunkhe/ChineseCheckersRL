@@ -162,8 +162,8 @@ class ChineseCheckersBoard(gym.Env):
             
     def step(self, action):
         action = np.array(action)
-        # if self.valid_action_mask()[action[0] * width*height + action[1]] == False:
-        #     return self.getObservation(), -2, True, True, {}
+        if self.valid_action_mask()[action[0] * width*height + action[1]] == False:
+            print("Not Valid")
         self.num_moves += 1
         reward = 0
         board = self.GlobalBoard[:]
