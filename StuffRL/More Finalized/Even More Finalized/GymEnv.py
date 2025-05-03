@@ -145,7 +145,7 @@ class ChineseCheckersBoard(gym.Env):
         for x in self.allLegalActions:
             mask[x[0], x[1]] = True  # (2,1)
         newMask = mask.flatten()
-        print(len(newMask))
+        # print(len(newMask))
         return newMask
     
     def isGameOver(self, board, player_num):
@@ -194,9 +194,9 @@ class ChineseCheckersBoard(gym.Env):
         
     def getObservation(self):
         indices = np.where(self.GlobalBoard == self.current_player)[0]
-        print(indices)
+        # print(indices)
         indiciesCoordinates = [(x // width, x % width) for x in indices]
-        print(len(indiciesCoordinates))
+        # print(len(indiciesCoordinates))
         destination = [(x // width, x % width) for x in self.ActualEndingLocations]
         A = np.array(indiciesCoordinates)
         B = np.array(destination)
