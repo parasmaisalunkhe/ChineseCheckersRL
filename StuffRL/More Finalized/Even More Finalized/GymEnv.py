@@ -2,6 +2,7 @@ import numpy as np
 from termcolor import colored
 from gymnasium import spaces
 import gymnasium as gym
+import tkinter as tk
 width = 29
 height = 19
 
@@ -73,6 +74,9 @@ class ChineseCheckersBoard(gym.Env):
         for i in range(height):
             row = " ".join(colored(str(x) if x != -1 else " ", PlayertoColor[x+1]) for x in board[i*width:(i+1)*width])
             print(row)
+        
+        # root = tk.Tk()
+        # root.title("Board Display")
 
     def nextPlayerPOV(self):
         board = None
@@ -174,6 +178,8 @@ class ChineseCheckersBoard(gym.Env):
         if action[1] in self.ActualEndingLocations:
             reward = 5.0
         if done:
+            if self.num_moves == 200:
+                reward = -10.0
             reward = 10.0
         self.GlobalBoard = board
         observation = self.getObservation()
