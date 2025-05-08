@@ -3,6 +3,8 @@ from termcolor import colored
 from gymnasium import spaces
 import gymnasium as gym
 import tkinter as tk
+import time
+import random
 width = 29
 height = 19
 
@@ -29,12 +31,16 @@ class ChineseCheckersBoard(gym.Env):
         
         self.StartingLocations = {2: [0,3], 3: [0,3,3], 4: [0,1,3,4], 6: [0,1,2,3,4,5]}.get(self.numPlayers)
         self.PlayerPOVPosition = {2: [3,3], 3: [2,2,2], 4: [1,2,1,2], 6: [1,1,1,1,1,1]}.get(self.numPlayers) #CCW
+        self.PlayerRotateDisplay = {2: [0,3], 3: [4,2,0], 4: [5,4,5,4], 6: [5,4,3,2,1,0]}.get(self.numPlayers)
         self.emptyTokenLocations = None
+        self.InvalidPlaces = []
         
         self.GlobalBoard = self.ChineseCheckersPattern().astype(np.int32)
         self.currentPlayerBoardView = self.GlobalBoard.copy()
         self.ActualEndingLocations = [self.emptyTokenLocations[x] for x in self.WinningPositions[0]]
-
+        for x in (self.StartingPositions[1], self.StartingPositions[2], self.StartingPositions[4], self.StartingPositions[5]):
+            self.InvalidPlaces += [self.emptyTokenLocations[i] for i in x]
+        # print(self.InvalidPlaces)
         self.agents = self.possible_agents = ["player_" + str(r) for r in range(1,self.numPlayers+1)]
         self.agentsID = {item: idx + 1 for idx, item in enumerate(self.agents)}
         self.IDagents = {idx + 1: item for idx, item in enumerate(self.agents)}
@@ -69,7 +75,10 @@ class ChineseCheckersBoard(gym.Env):
 
     def render(self, board):
         """Prints ASCII representations of the Global board."""
-        board = board.astype(np.int32)
+        n = self.PlayerRotateDisplay.pop(0)
+        self.PlayerRotateDisplay.append(n)
+        newBoard = self.rotateNtimes(board, n)
+        board = newBoard.astype(np.int32)
         PlayertoColor = ["black", "white", "yellow", "blue", "greennnn", "magenta", "cyan", "red"]
         for i in range(height):
             row = " ".join(colored(str(x) if x != -1 else " ", PlayertoColor[x+1]) for x in board[i*width:(i+1)*width])
@@ -105,7 +114,12 @@ class ChineseCheckersBoard(gym.Env):
         for index,x in enumerate(board):
             if x == player_num:
                 AllValidmoves = self.TheListofAllPossibleMoves(index, board)
-                tuples = [np.array([index, num]) for num in AllValidmoves]
+                tuples = []
+                for num in AllValidmoves:
+                    var1, var2, var3 = index in self.ActualEndingLocations, num in self.ActualEndingLocations, num not in self.InvalidPlaces
+                    if var1 == var2 and var3:
+                        tuples.append(np.array([index, num]))
+                # tuples = [np.array([index, num]) for num in AllValidmoves]
                 legal_actions += tuples
         return legal_actions
 
@@ -129,12 +143,7 @@ class ChineseCheckersBoard(gym.Env):
         possibleJumps = set()
         posOneStepMoves = [(index+2, index+4), (index-2, index-4), (index-width+1,index-2*width+2), (index-width-1, index-2*width-2), (index+width+1, index+2*width+2), (index+width-1, index+2*width-2)]
         for x in posOneStepMoves:
-            if index in self.ActualEndingLocations:
-                if x[0] in self.ActualEndingLocations:
-                    possibleSteps.add(x[0])
-                if x[1] in self.ActualEndingLocations:
-                    possibleSteps.add(x[0])
-            elif x[0] > 0 and x[0] < width*height:
+            if x[0] > 0 and x[0] < width*height:
                 if board[x[0]] == 0:
                     possibleSteps.add(x[0])
                 elif x[1] > 0 and x[1] < width*height and board[x[1]] == 0:
@@ -156,6 +165,7 @@ class ChineseCheckersBoard(gym.Env):
         if self.num_moves <= 5:
             return False
         endLocation = [board[x] for x in self.ActualEndingLocations]
+        # print("Ending:", endLocation)
         if len(set(endLocation)) == 1 and list(set(endLocation))[0] == player_num:
             return True
         else:
@@ -174,12 +184,12 @@ class ChineseCheckersBoard(gym.Env):
         Token = self.current_player
         board[action[0]] = 0
         board[action[1]] = Token
-        done = self.isGameOver(board, Token) or self.num_moves >= 200
+        done = self.isGameOver(board, Token) #or self.num_moves >= 200
         if action[1] in self.ActualEndingLocations:
             reward = 5.0
         if done:
-            if self.num_moves == 200:
-                reward = -10.0
+            # if self.num_moves == 200:
+            #     reward = -10.0
             reward = 10.0
         self.GlobalBoard = board
         observation = self.getObservation()
@@ -240,45 +250,27 @@ class FlattenMultiDiscreteWrapper(gym.ActionWrapper):
         """Forward the valid action mask from the original env."""
         return self.env.valid_action_mask()
     
-# from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
-# from sb3_contrib.common.wrappers import ActionMasker
-# from sb3_contrib.ppo_mask import MaskablePPO
-# from stable_baselines3.common.env_checker import check_env
-
 
 env = ChineseCheckersBoard(2)
 
-
-# # obs, info = env.reset()
-# # print(obs)
-# env = FlattenMultiDiscreteWrapper(env)  # Flatten actions
-# env = ActionMasker(env, mask_fn)         # Add action masking
-# # check_env(env, warn=True)
-# # # 5. Create and train the MaskablePPO model
-# model = MaskablePPO("MlpPolicy", env, verbose=1)
-# model.learn(total_timesteps=10_000)
-
-# # 6. After training, run a prediction
-# # 1. Reset environment
 obs, info = env.reset()
 done = False
 total_reward = 0
 
 while not done:
     # 2. Get valid action mask manually (because env is wrapped)
-    action_mask = env.action_masks()
-    print("Action mask:", action_mask)
-    # 3. Predict action with action mask
-    action
     
-    # 4. Take a step in the environment
-    obs, reward, done, truncated, info = env.step(action)
-    
+    # print(env.allLegalActions)
+    random_element = random.choice(env.allLegalActions)
+    obs, reward, done, truncated, info = env.step(random_element)
+    env.render(env.GlobalBoard)
+    # print("Action Taken:", random_element)
+    time.sleep(0.3)
     # 5. Accumulate reward
-    total_reward += reward
+    # total_reward += reward
 
     # Optional: print what is happening
-    print(f"Action taken (flat): {action} | Reward: {reward} | Done: {done}")
-
+    # print(f"Action taken (flat): {action} | Reward: {reward} | Done: {done}")
+# print(done)
 # 6. Final result
-print(f"Episode finished. Total reward: {total_reward}")
+# print(f"Episode finished. Total reward: {total_reward}")
