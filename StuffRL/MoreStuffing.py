@@ -1,69 +1,75 @@
-import numpy as np
-import tensorflow as tf
-from collections import deque
-import random
+# from TestingGymEnvMore import ChineseCheckersBoard
+# import numpy as np
+# import random
+# import nevergrad as ng
 
-class ValueNetwork(tf.keras.Model):
-    def __init__(self, board_size):
-        super(ValueNetwork, self).__init__()
-        self.dense1 = tf.keras.layers.Dense(128, activation='relu')
-        self.dense2 = tf.keras.layers.Dense(128, activation='relu')
-        self.output_layer = tf.keras.layers.Dense(1)  # Predict value of board
+# # Balance weights: increase alpha to emphasize reward, beta to emphasize score
+# alpha = 1.0  # how much we care about maximizing reward
+# beta = 1.0   # how much we care about minimizing inefficiency score
 
-    def call(self, x):
-        x = self.dense1(x)
-        x = self.dense2(x)
-        return self.output_layer(x)
+# def evaluate_weights(weights, num_episodes=1):
+#     total_reward = 0
+#     total_score = 0
 
-class LookaheadRLAgent:
-    def __init__(self, board_size, learning_rate=1e-3, gamma=0.99):
-        self.value_net = ValueNetwork(board_size)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate)
-        self.gamma = gamma
-        self.memory = deque(maxlen=10000)
-        self.batch_size = 64
+#     for _ in range(num_episodes):
+#         env = ChineseCheckersBoard(2)
+#         obs, info = env.reset()
+#         episode_reward = 0
+#         episode_score = 0
 
-    def select_move(self, env, player_id):
-        legal_moves = env.get_legal_moves(player_id)
-        best_value = -np.inf
-        best_move = None
+#         while not env.isGameOver(env.GlobalBoard, env.current_player):
+#             valid_actions = list(obs["action_mask"])
+#             best_action = None
+#             best_score = float('inf')
+#             best_measurement_score = float('inf')
 
-        for move in legal_moves:
-            sim_env = env.copy()
-            sim_env.apply_move(player_id, move)
-            obs = sim_env.get_observation(player_id)
-            obs_tensor = tf.convert_to_tensor(obs[np.newaxis, :], dtype=tf.float32)
-            predicted_value = self.value_net(obs_tensor).numpy()[0][0]
+#             for action in valid_actions:
+#                 # Backup state
+#                 backup_board = env.GlobalBoard.copy()
+#                 backup_player = env.current_player
+#                 backup_num_moves = env.num_moves
 
-            if predicted_value > best_value:
-                best_value = predicted_value
-                best_move = move
+#                 try:
+#                     temp_obs, reward, done, truncated, info = env.step(action)
+#                     measurements = temp_obs["measurements"]  # [avg_x, avg_y, dist_to_corner]
+#                     measurement_score = sum(w * m for w, m in zip(weights, measurements))
 
-        return best_move
+#                     if measurement_score < best_score:
+#                         best_score = measurement_score
+#                         best_action = action
 
-    def store_transition(self, obs, reward, next_obs, done):
-        self.memory.append((obs, reward, next_obs, done))
+#                     # Restore state
+#                     env.GlobalBoard = backup_board
+#                     env.current_player = backup_player
+#                     env.num_moves = backup_num_moves
 
-    def train(self):
-        if len(self.memory) < self.batch_size:
-            return
+#                 except:
+#                     env.GlobalBoard = backup_board
+#                     env.current_player = backup_player
+#                     env.num_moves = backup_num_moves
 
-        batch = random.sample(self.memory, self.batch_size)
-        obs_batch, reward_batch, next_obs_batch, done_batch = zip(*batch)
+#             # Take the best action
+#             obs, reward, done, truncated, info = env.step(best_action)
+#             episode_reward += reward
+#             episode_score += best_score
 
-        obs_batch = tf.convert_to_tensor(obs_batch, dtype=tf.float32)
-        next_obs_batch = tf.convert_to_tensor(next_obs_batch, dtype=tf.float32)
-        reward_batch = tf.convert_to_tensor(reward_batch, dtype=tf.float32)
-        done_batch = tf.convert_to_tensor(done_batch, dtype=tf.float32)
+#         total_reward += episode_reward
+#         total_score += episode_score
 
-        next_values = tf.squeeze(self.value_net(next_obs_batch), axis=1)
-        target_values = reward_batch + self.gamma * next_values * (1.0 - done_batch)
+#     avg_reward = total_reward / num_episodes
+#     avg_score = total_score / num_episodes
 
-        with tf.GradientTape() as tape:
-            predicted_values = tf.squeeze(self.value_net(obs_batch), axis=1)
-            loss = tf.keras.losses.MSE(target_values, predicted_values)
+#     # We negate reward because optimizer minimizes
+#     return alpha * (-avg_reward) + beta * avg_score
 
-        grads = tape.gradient(loss, self.value_net.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.value_net.trainable_variables))
-        return loss.numpy()
+# # Nevergrad optimization wrapper
+# def objective(weights_array):
+#     return evaluate_weights(weights_array)
+
+# # Optimizer setup
+# optimizer = ng.optimizers.OnePlusOne(parametrization=3, budget=5)  # 3 weights, 20 evaluations
+# recommendation = optimizer.minimize(objective)
+
+# print("✅ Best weights found:", recommendation.value)
+# print("🏆 Final score (combined objective):", recommendation.loss)
 

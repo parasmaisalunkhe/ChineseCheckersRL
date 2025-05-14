@@ -29,9 +29,9 @@ class ChineseCheckersBoard(gym.Env):
             [74,84,85,95,96,97,107,108,109,110],
         ]
         
-        self.StartingLocations = {2: [0,3], 3: [0,2,4], 4: [0,1,3,4], 6: [0,1,2,3,4,5]}.get(self.numPlayers)
+        self.StartingLocations = {2: [0,3], 3: [0,3,3], 4: [0,1,3,4], 6: [0,1,2,3,4,5]}.get(self.numPlayers)
         self.PlayerPOVPosition = {2: [3,3], 3: [2,2,2], 4: [1,2,1,2], 6: [1,1,1,1,1,1]}.get(self.numPlayers) #CCW
-        self.PlayerRotateDisplay = {2: [0,3], 3: [0,4,2], 4: [0,5,3,2], 6: [0,5,4,3,2,1]}.get(self.numPlayers)
+        self.PlayerRotateDisplay = {2: [0,3], 3: [0,4,2], 4: [0,4,5,4], 6: [0,5,4,3,2,1]}.get(self.numPlayers)
         self.emptyTokenLocations = None
         self.InvalidPlaces = []
         
@@ -44,11 +44,16 @@ class ChineseCheckersBoard(gym.Env):
         self.agents = self.possible_agents = ["player_" + str(r) for r in range(1,self.numPlayers+1)]
         self.agentsID = {item: idx + 1 for idx, item in enumerate(self.agents)}
         self.IDagents = {idx + 1: item for idx, item in enumerate(self.agents)}
+        self.possible_agents = ["player_" + str(r) for r in range(1,self.numPlayers + 1)]
+        self.agent_name_mapping = dict(
+            zip(self.possible_agents, list(range(1,len(self.possible_agents)+1)))
+        )
 
         self.current_player = None 
-
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(100,), dtype=np.float64)
-        self.action_space = spaces.MultiDiscrete([width*height, width*height])
+        self._action_spaces = {agent: spaces.MultiDiscrete([width*height, width*height]) for agent in self.possible_agents}
+        self._observation_spaces = {
+            agent: spaces.Box(low=-np.inf, high=np.inf, shape=(100,), dtype=np.float64) for agent in self.possible_agents
+        }
 
         self.last_move = None
         self.num_moves = 0
@@ -75,16 +80,15 @@ class ChineseCheckersBoard(gym.Env):
 
     def render(self, board):
         """Prints ASCII representations of the Global board."""
-        board = board.astype(np.int32)
-        # n = self.PlayerRotateDisplay.pop(0)
-        # self.PlayerRotateDisplay.append(n)
-        # newBoard = self.rotateNtimes(board, n)
-        # board = newBoard.astype(np.int32)
-        PlayertoColor = ["black", "white", "yellow", "blue", "green", "magenta", "cyan", "red"]
+        n = self.PlayerRotateDisplay.pop(0)
+        self.PlayerRotateDisplay.append(n)
+        newBoard = self.rotateNtimes(board, n)
+        board = newBoard.astype(np.int32)
+        PlayertoColor = ["black", "white", "yellow", "blue", "greennnn", "magenta", "cyan", "red"]
         for i in range(height):
             row = " ".join(colored(str(x) if x != -1 else " ", PlayertoColor[x+1]) for x in board[i*width:(i+1)*width])
             print(row)
-        # print("\033[2J\033[H", end="")
+        print("\033[2J\033[H", end="")
         # root = tk.Tk()
         # root.title("Board Display")
 
@@ -189,9 +193,8 @@ class ChineseCheckersBoard(gym.Env):
         board[action[1]] = Token
         done = self.isGameOver(board, Token) #or self.num_moves >= 200
         if action[1] in self.ActualEndingLocations:
-            reward = 0.0
+            reward = 1.0
         if done:
-            self.render(self.GlobalBoard)
             # if self.num_moves == 200:
             #     reward = -10.0
             reward = 10.0
@@ -278,20 +281,20 @@ class FlattenMultiDiscreteWrapper(gym.ActionWrapper):
 # print(done)
 # 6. Final result
 # print(f"Episode finished. Total reward: {total_reward}")
-# from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
-# from sb3_contrib.common.wrappers import ActionMasker
-# from sb3_contrib.ppo_mask import MaskablePPO
-# from stable_baselines3.common.env_checker import check_env
+from sb3_contrib.common.maskable.policies import MaskableActorCriticPolicy
+from sb3_contrib.common.wrappers import ActionMasker
+from sb3_contrib.ppo_mask import MaskablePPO
+from stable_baselines3.common.env_checker import check_env
 
-# env = ChineseCheckersBoard(2)
+env = ChineseCheckersBoard(2)
 
 
-# # obs, info = env.reset()
-# # print(obs)
-# env = FlattenMultiDiscreteWrapper(env)  # Flatten actions
-# env = ActionMasker(env, mask_fn)         # Add action masking
-# # check_env(env, warn=True)
-# # # 5. Create and train the MaskablePPO model
-# model = MaskablePPO("MlpPolicy", env, verbose=1)
-# model.learn(total_timesteps=100_000)
-# model.save("testing")
+# obs, info = env.reset()
+# print(obs)
+env = FlattenMultiDiscreteWrapper(env)  # Flatten actions
+env = ActionMasker(env, mask_fn)         # Add action masking
+# check_env(env, warn=True)
+# # 5. Create and train the MaskablePPO model
+model = MaskablePPO("MlpPolicy", env, verbose=1)
+model.learn(total_timesteps=100_000)
+model.save("testing")

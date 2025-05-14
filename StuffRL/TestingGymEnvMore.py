@@ -170,7 +170,7 @@ class ChineseCheckersBoard(gym.Env):
         # print("action", action)
         self.num_moves += 1
         
-        reward = -1.0
+        reward = 0
         # print("Key", self.current_player)
         board = self.GlobalBoard[:]
         # print(self.IDagents[self.current_player])

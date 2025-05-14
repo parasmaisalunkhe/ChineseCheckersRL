@@ -1,0 +1,27 @@
+import math
+import random
+import numpy as np
+
+class UCBMoveSelector:
+    def __init__(self, num_moves, c=1.41, gamma=0.99):
+        self.num_moves = 0
+        self.c = c
+        self.gamma = gamma
+        self.N = np.zeros((29*19, 29*19))
+        self.Q = np.zeros((29*19, 29*19)) 
+        self.t = 0
+
+    def select_move(self, valid_moves):
+        self.t += 1
+        for x in valid_moves:
+            if self.N[x[0], x[1]] == 0:
+                return x  # Try unvisited move
+        ucb_values = [
+            self.Q[x[0], x[1]] + self.c * math.sqrt(math.log(self.t) / self.N[x[0], x[1]])
+            for x in valid_moves
+        ]
+        return ucb_values.index(max(ucb_values))
+
+    def update(self, move, reward, oldobs, newObs):
+        self.N[move[0], move[1]] += 1
+        self.Q[move[0], move[1]] += (reward - self.Q[move[0], move[1]]) / self.N[move[0], move[1]]
